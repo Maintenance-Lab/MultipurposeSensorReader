@@ -7,5 +7,5 @@ class Sensor {
     virtual String getColumnNames() = 0;
     virtual String getName() = 0;
     virtual void begin(MeasurementConfig& config) = 0;
-    virtual void gatherAndAccumulateData(String& accumulatedData, MeasurementMetadata& metadata, MeasurementData& data);
+    virtual void gatherAndAccumulateData(String& accumulatedData, MeasurementMetadata& metadata, MeasurementData& data, ulong msSinceStart);
 };

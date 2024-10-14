@@ -9,7 +9,7 @@ class ENV3Wrapper : public Sensor {
     SHT3X sht3x;
 
   public:
-    String getColumnNames() override { return "iterator,seconds,humidity,temp,pressure,altitude\r\n"; }
+    String getColumnNames() override { return "iterator,ms,humidity,temp,pressure,altitude\r\n"; }
     String getName() override { return "Environment Sensor"; }
     void begin(MeasurementConfig& config) override {
         config.saveAtNDataPoints = 100;
@@ -21,10 +21,10 @@ class ENV3Wrapper : public Sensor {
         }
     }
     void gatherAndAccumulateData(String& accumulatedData, MeasurementMetadata& metadata,
-                                 MeasurementData& data) override {
+                                 MeasurementData& data, ulong msSinceStart) override {
         qmp.update();
         sht3x.update();
-        accumulatedData += String(data.iterator) + "," + String(data.seconds) + "," + String(sht3x.humidity, 2) + "," +
+        accumulatedData += String(data.iterator) + "," + String(msSinceStart) + "," + String(sht3x.humidity, 2) + "," +
                            String((sht3x.cTemp + qmp.cTemp) / 2, 2) + "," + String(qmp.pressure, 2) + "," +
                            String(qmp.altitude, 2) + "\n";
         data.iterator++;

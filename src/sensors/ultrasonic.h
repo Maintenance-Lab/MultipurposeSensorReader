@@ -10,19 +10,19 @@ class UltrasonicWrapper : public Sensor {
     unsigned int m_lastTime;
 
   public:
-    String getColumnNames() { return "iterator,seconds,distance\r\n"; }
+    String getColumnNames() { return "iterator,ms,distance\r\n"; }
     String getName() { return "Ultrasonic Sensor"; }
     void begin(MeasurementConfig& config) {
         config.saveAtNDataPoints = 100;
         m_lastTime = millis();
     }
-    void gatherAndAccumulateData(String& accumulatedData, MeasurementMetadata& metadata, MeasurementData& data) {
+    void gatherAndAccumulateData(String& accumulatedData, MeasurementMetadata& metadata, MeasurementData& data, ulong msSinceStart) {
         unsigned int currentTime = millis();
         if (currentTime - m_lastTime >= 50) { // Only log every 500ms
             m_lastTime = currentTime;
             long measureInCentimeters = ultrasonic.MeasureInCentimeters();
             accumulatedData +=
-                String(data.iterator) + "," + String(data.seconds) + "," + String(measureInCentimeters) + "\n";
+                String(data.iterator) + "," + String(msSinceStart) + "," + String(measureInCentimeters) + "\n";
             data.iterator++;
             metadata.nCollectedDataPoints++;
         }

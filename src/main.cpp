@@ -1,6 +1,7 @@
 #include "AXP192.h"
 #include "IMUMeasurementStructure.h"
 #include "esp32_digital_led_lib.h"
+#include "logging.h"
 #include "renders/IMU_render.h"
 #include "sensors/env3.h"
 #include "sensors/imu.h"
@@ -11,11 +12,11 @@
 #include "utils/SD_controller.h"
 #include <M5Core2.h>
 
-
 String accumulatedData;
 const unsigned int timeInterval = 1000;
 int indexMeasurementSession = 0;
 unsigned int lastTime = 0;
+ulong measurementStartTime = 0;
 bool isMeasuring = false;
 bool buttonsRendered = false;
 Sensor* sensor;
@@ -32,6 +33,7 @@ void m5SetDefaultSettings() {
 
 void setup() {
     M5.begin();
+    INITLOG();
     m5SetDefaultSettings();
     indexMeasurementSession = SD_controller::countNumberOfFiles();
     sensor = new ENV3Wrapper();
@@ -76,8 +78,9 @@ void updateDisplay(MeasurementData& data, MeasurementMetadata& metadata, Measure
 }
 
 void startMeasurement() {
-    data.iterator = 0;
-    data.seconds = 0;
+    measurementStartTime = millis();
+    accumulatedData = "";
+    resetMeasurement(data, metadata);
     sensor->begin(config);
 }
 
@@ -88,6 +91,9 @@ void checkButtonEvent() {
         isMeasuring = !isMeasuring;
         if (isMeasuring) {
             startMeasurement();
+        } else {
+            accumulatedData = "";
+            resetMeasurement(data, metadata);
         }
         buttonsRendered = false;
         indexMeasurementSession = SD_controller::countNumberOfFiles();
@@ -118,7 +124,7 @@ void loop() {
             metadata.hz = 0;
         }
 
-        sensor->gatherAndAccumulateData(accumulatedData, metadata, data);
+        sensor->gatherAndAccumulateData(accumulatedData, metadata, data, millis() - measurementStartTime);
 
         // Save data if needed when the number of data points is reached
         if (metadata.nCollectedDataPoints >= config.saveAtNDataPoints) {

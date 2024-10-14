@@ -8,7 +8,7 @@ class MotionWrapper : public Sensor {
     unsigned int m_lastTime = 0;
 
   public:
-    String getColumnNames() override { return "Iterator,Seconds\r\n"; }
+    String getColumnNames() override { return "Iterator,ms\r\n"; }
     String getName() override { return "Motion Sensor"; }
     void begin(MeasurementConfig& config) override {
         config.saveAtNDataPoints = 5;
@@ -17,7 +17,7 @@ class MotionWrapper : public Sensor {
     }
 
     void gatherAndAccumulateData(String& accumulatedData, MeasurementMetadata& metadata,
-                                 MeasurementData& data) override {
+                                 MeasurementData& data, ulong msSinceStart) override {
         unsigned int currentTime = millis();
         if (currentTime - m_lastTime >= 500) { // Only log every 500ms
             m_lastTime = currentTime;
@@ -26,7 +26,7 @@ class MotionWrapper : public Sensor {
             if (detected != m_detectedLastTime) { // Only log if state changed
                 m_detectedLastTime = detected;
                 if (detected) { // Only log if detected, don't log when not detected
-                    accumulatedData += String(data.iterator) + "," + String(data.seconds) + "\n";
+                    accumulatedData += String(data.iterator) + "," + String(msSinceStart) + "\n";
                     data.iterator++;
                     metadata.nCollectedDataPoints++;
                 }
