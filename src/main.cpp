@@ -36,30 +36,7 @@ void setup() {
     INITLOG();
     m5SetDefaultSettings();
     indexMeasurementSession = SD_controller::countNumberOfFiles();
-    sensor = new ENV3Wrapper();
-}
-
-int sensorTypeIndex = 0;
-void switchSensorType() {
-    sensorTypeIndex++;
-    if (sensorTypeIndex > 3) {
-        sensorTypeIndex = 0;
-    }
-    delete sensor;
-    switch (sensorTypeIndex) {
-    case 0:
-        sensor = new UltrasonicWrapper();
-        break;
-    case 1:
-        sensor = new IMUWrapper();
-        break;
-    case 2:
-        sensor = new MotionWrapper();
-        break;
-    case 3:
-        sensor = new ENV3Wrapper();
-        break;
-    }
+    sensor = new IMUWrapper();
 }
 
 void saveData(MeasurementMetadata& metadata, MeasurementConfig& config) {
@@ -97,11 +74,6 @@ void checkButtonEvent() {
         }
         buttonsRendered = false;
         indexMeasurementSession = SD_controller::countNumberOfFiles();
-    }
-
-    if (M5.BtnC.wasPressed()) {
-        switchSensorType();
-        buttonsRendered = false;
     }
 }
 

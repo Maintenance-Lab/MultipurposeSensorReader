@@ -21,17 +21,16 @@ class IMUWrapper : public Sensor {
                                  MeasurementData& data, ulong msSinceStart) override {
         float accX, accY, accZ;
         float gyroX, gyroY, gyroZ;
-        float temp;
+        //float temp;
         m_imu.getAccel(&accX, &accY, &accZ);
-        m_imu.getGyro(&gyroX, &gyroY, &gyroZ);
-        m_imu.getTemp(&temp);
+        //m_imu.getGyro(&gyroX, &gyroY, &gyroZ);
+        //m_imu.getTemp(&temp);
 
         // Ensure accumulatedData is a String object and formatted data is
         // concatenated
         LOGLN(data.iterator);
         accumulatedData += String(data.iterator) + "," + String(msSinceStart) + "," + String(accX, 2) + "," +
-                           String(accY, 2) + "," + String(accZ, 2) + "," + String(gyroX, 2) + "," + String(gyroY, 2) +
-                           "," + String(gyroZ, 2) + "," + String(temp, 2) + "\n";
+                           String(accY, 2) + "," + String(accZ, 2) + "\n";
 
         data.iterator++;
         metadata.nCollectedDataPoints++;

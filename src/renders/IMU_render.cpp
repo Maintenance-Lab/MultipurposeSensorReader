@@ -20,9 +20,6 @@ void IMU_RENDER::renderStartScreen(int index, String name) {
 
     M5.Lcd.setCursor(20, 240 - 20);
     M5.Lcd.printf("Start");
-
-    M5.Lcd.setCursor(235, 240 - 20);
-    M5.Lcd.printf("Change");
 }
 
 void IMU_RENDER::renderMeasuringScreen() {
