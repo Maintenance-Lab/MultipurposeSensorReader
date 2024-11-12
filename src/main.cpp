@@ -4,7 +4,8 @@
 #include "logging.h"
 #include "renders/IMU_render.h"
 #include "sensors/env3.h"
-#include "sensors/imu.h"
+#include "sensors/imu_ext.h"
+#include "sensors/imu_int.h"
 #include "sensors/motion.h"
 #include "sensors/sensor.h"
 #include "sensors/ultrasonic.h"
@@ -28,7 +29,7 @@ void m5SetDefaultSettings() {
     M5.Lcd.setTextSize(2);
     M5.Lcd.fillScreen(BLACK);
     M5.Lcd.setTextColor(WHITE);
-    M5.Lcd.setBrightness(84);
+    M5.Axp.SetLcdVoltage(2700); //3000 very bright, 2500 way too dark, 2600 very dim
 }
 
 void setup() {
@@ -41,8 +42,7 @@ void setup() {
 
 int sensorTypeIndex = 0;
 void switchSensorType() {
-    sensorTypeIndex++;
-    if (sensorTypeIndex > 3) {
+    if (sensorTypeIndex > 4) {
         sensorTypeIndex = 0;
     }
     delete sensor;
@@ -51,15 +51,19 @@ void switchSensorType() {
         sensor = new UltrasonicWrapper();
         break;
     case 1:
-        sensor = new IMUWrapper();
+        sensor = new IMUExternalWrapper();
         break;
     case 2:
-        sensor = new MotionWrapper();
+        sensor = new IMUInternalWrapper();
         break;
     case 3:
+        sensor = new MotionWrapper();
+        break;
+    case 4:
         sensor = new ENV3Wrapper();
         break;
     }
+    sensorTypeIndex++;
 }
 
 void saveData(MeasurementMetadata& metadata, MeasurementConfig& config) {
@@ -124,7 +128,7 @@ void loop() {
             metadata.hz = 0;
         }
 
-        sensor->gatherAndAccumulateData(accumulatedData, metadata, data, millis() - measurementStartTime);
+        sensor->gatherAndAccumulateData(accumulatedData, config, metadata, data, millis() - measurementStartTime);
 
         // Save data if needed when the number of data points is reached
         if (metadata.nCollectedDataPoints >= config.saveAtNDataPoints) {

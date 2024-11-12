@@ -12,7 +12,9 @@ class ENV3Wrapper : public Sensor {
     String getColumnNames() override { return "iterator,ms,humidity,temp,pressure,altitude\r\n"; }
     String getName() override { return "Environment Sensor"; }
     void begin(MeasurementConfig& config) override {
-        config.saveAtNDataPoints = 100;
+        config.setHz = 639;
+        config.saveAtNDataPoints = config.setHz * 10; // 639hz * 10s
+
         if (!qmp.begin(&Wire, QMP6988_SLAVE_ADDRESS_L, 32, 33, 400000U)) {
             Serial.println("Couldn't find QMP6988");
         }
@@ -20,7 +22,7 @@ class ENV3Wrapper : public Sensor {
             Serial.println("Couldn't find SHT3X");
         }
     }
-    void gatherAndAccumulateData(String& accumulatedData, MeasurementMetadata& metadata,
+    void gatherAndAccumulateData(String& accumulatedData, MeasurementConfig& config, MeasurementMetadata& metadata,
                                  MeasurementData& data, ulong msSinceStart) override {
         qmp.update();
         sht3x.update();

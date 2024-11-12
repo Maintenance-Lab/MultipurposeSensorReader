@@ -8,6 +8,7 @@ struct MeasurementMetadata {
 };
 
 struct MeasurementConfig {
+  int setHz;
   int saveAtNDataPoints;
 };
 
