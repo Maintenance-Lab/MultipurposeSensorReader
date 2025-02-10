@@ -12,8 +12,8 @@
 #include "ultrasonic.h"
 #include "utils/SD_controller.h"
 #include <M5Core2.h>
+#include "utils/fileWriter.h"
 
-String accumulatedData;
 const unsigned int timeInterval = 1000;
 int indexMeasurementSession = 0;
 unsigned int lastTime = 0;
@@ -24,6 +24,7 @@ Sensor* sensor;
 MeasurementData data;
 MeasurementMetadata metadata;
 MeasurementConfig config;
+FileWriter fileWriter;
 
 void m5SetDefaultSettings() {
     M5.Lcd.setTextSize(2);
@@ -68,11 +69,11 @@ void switchSensorType() {
 
 void saveData(MeasurementMetadata& metadata, MeasurementConfig& config) {
     metadata.measurementsIndex += metadata.nCollectedDataPoints;
-    SD_controller::appendFile(indexMeasurementSession, accumulatedData, sensor->getColumnNames().c_str());
+    //SD_controller::appendFile(indexMeasurementSession, accumulatedData, sensor->getColumnNames().c_str());
 
     // Reset metadata
     metadata.nCollectedDataPoints = 0;
-    accumulatedData = "";
+    //accumulatedData = "";
 }
 
 void updateDisplay(MeasurementData& data, MeasurementMetadata& metadata, MeasurementConfig& config) {
@@ -83,8 +84,10 @@ void updateDisplay(MeasurementData& data, MeasurementMetadata& metadata, Measure
 
 void startMeasurement() {
     measurementStartTime = millis();
-    accumulatedData = "";
+    //accumulatedData = "";
     resetMeasurement(data, metadata);
+    fileWriter.open(sensor->getColumnNames().c_str());
+    indexMeasurementSession = SD_controller::countNumberOfFiles();
     sensor->begin(config);
 }
 
@@ -96,11 +99,11 @@ void checkButtonEvent() {
         if (isMeasuring) {
             startMeasurement();
         } else {
-            accumulatedData = "";
+            //accumulatedData = "";
             resetMeasurement(data, metadata);
         }
         buttonsRendered = false;
-        indexMeasurementSession = SD_controller::countNumberOfFiles();
+        //indexMeasurementSession = SD_controller::countNumberOfFiles();
     }
 
     if (M5.BtnC.wasPressed()) {
@@ -128,7 +131,7 @@ void loop() {
             metadata.hz = 0;
         }
 
-        sensor->gatherAndAccumulateData(accumulatedData, config, metadata, data, millis() - measurementStartTime);
+        sensor->gatherAndAccumulateData(fileWriter, config, metadata, data, millis() - measurementStartTime);
 
         // Save data if needed when the number of data points is reached
         if (metadata.nCollectedDataPoints >= config.saveAtNDataPoints) {

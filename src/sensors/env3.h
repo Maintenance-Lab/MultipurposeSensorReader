@@ -22,13 +22,24 @@ class ENV3Wrapper : public Sensor {
             Serial.println("Couldn't find SHT3X");
         }
     }
-    void gatherAndAccumulateData(String& accumulatedData, MeasurementConfig& config, MeasurementMetadata& metadata,
+    void gatherAndAccumulateData(FileWriter& fileWriter, MeasurementConfig& config, MeasurementMetadata& metadata,
                                  MeasurementData& data, ulong msSinceStart) override {
         qmp.update();
         sht3x.update();
-        accumulatedData += String(data.iterator) + "," + String(msSinceStart) + "," + String(sht3x.humidity, 2) + "," +
-                           String((sht3x.cTemp + qmp.cTemp) / 2, 2) + "," + String(qmp.pressure, 2) + "," +
-                           String(qmp.altitude, 2) + "\n";
+
+        fileWriter.write(data.iterator);
+        fileWriter.write(',');
+        fileWriter.write(msSinceStart);
+        fileWriter.write(',');
+        fileWriter.write(sht3x.humidity, 2);
+        fileWriter.write(',');
+        fileWriter.write((sht3x.cTemp + qmp.cTemp) / 2, 2);
+        fileWriter.write(',');
+        fileWriter.write(qmp.pressure, 2);
+        fileWriter.write(',');
+        fileWriter.write(qmp.altitude, 2);
+        fileWriter.write('\n');
+
         data.iterator++;
         metadata.nCollectedDataPoints++;
     }

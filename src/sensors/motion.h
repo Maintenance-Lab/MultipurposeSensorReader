@@ -17,8 +17,9 @@ class MotionWrapper : public Sensor {
         m_lastTime = millis();
     }
 
-    void gatherAndAccumulateData(String& accumulatedData, MeasurementConfig& config, MeasurementMetadata& metadata,
+    void gatherAndAccumulateData(FileWriter& fileWriter, MeasurementConfig& config, MeasurementMetadata& metadata,
                                  MeasurementData& data, ulong msSinceStart) override {
+                                    
         unsigned int currentTime = millis();
         if (currentTime - m_lastTime >= (1000 / config.setHz)) { // Log data at the specified frequency
         // if (currentTime - m_lastTime >= 10) { // Only log every 100ms
@@ -28,7 +29,14 @@ class MotionWrapper : public Sensor {
             // if (detected != m_detectedLastTime) { // Only log if state changed
                 // m_detectedLastTime = detected;
                 // if (detected) { // Only log if detected, don't log when not detected
-            accumulatedData += String(data.iterator) + "," + String(msSinceStart) + "," + String(detected) + "\n";
+
+            fileWriter.write(data.iterator);
+            fileWriter.write(',');
+            fileWriter.write(msSinceStart);
+            fileWriter.write(',');
+            fileWriter.write(detected);
+            fileWriter.write('\n');
+
             data.iterator++;
             metadata.nCollectedDataPoints++;
             // delay(500);

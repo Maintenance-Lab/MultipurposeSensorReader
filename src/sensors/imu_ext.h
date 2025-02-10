@@ -18,7 +18,7 @@ class IMUExternalWrapper : public Sensor {
         Wire.begin(32, 33);
         m_imu.begin();
     }
-    void gatherAndAccumulateData(String& accumulatedData, MeasurementConfig& config, MeasurementMetadata& metadata,
+    void gatherAndAccumulateData(FileWriter& fileWriter, MeasurementConfig& config, MeasurementMetadata& metadata,
                                  MeasurementData& data, ulong msSinceStart) override {
         float accX, accY, accZ;
         float gyroX, gyroY, gyroZ;
@@ -27,10 +27,24 @@ class IMUExternalWrapper : public Sensor {
         m_imu.getGyro(&gyroX, &gyroY, &gyroZ);
         m_imu.getTemp(&temp);
 
-        // Ensure accumulatedData is a String object and formatted data is  concatenated
-        accumulatedData += String(data.iterator) + "," + String(msSinceStart) + "," + String(accX, 2) + "," +
-                           String(accY, 2) + "," + String(accZ, 2) + "," + String(gyroX, 2) + "," + String(gyroY, 2) +
-                           "," + String(gyroZ, 2) + "," + String(temp, 2) + "\n";
+        fileWriter.write(data.iterator);
+        fileWriter.write(',');
+        fileWriter.write(msSinceStart);
+        fileWriter.write(',');
+        fileWriter.write(accX, 2);
+        fileWriter.write(',');
+        fileWriter.write(accY, 2);
+        fileWriter.write(',');
+        fileWriter.write(accZ, 2);
+        fileWriter.write(',');
+        fileWriter.write(gyroX, 2);
+        fileWriter.write(',');
+        fileWriter.write(gyroY, 2);
+        fileWriter.write(',');
+        fileWriter.write(gyroZ, 2);
+        fileWriter.write(',');
+        fileWriter.write(temp, 2);
+        fileWriter.write('\n');
 
         data.iterator++;
         metadata.nCollectedDataPoints++;
