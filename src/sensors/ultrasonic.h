@@ -32,10 +32,7 @@ class UltrasonicWrapper : public Sensor {
             fileWriter.write(measureInCentimeters, 2);
             fileWriter.write('\n');
 
-LOGLN("t");
-
             data.iterator++;
-            metadata.nCollectedDataPoints++;
         }
     }
 };

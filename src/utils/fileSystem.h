@@ -5,12 +5,12 @@
 #include "SD.h"
 #include <M5Core2.h>
 
-class SD_controller {
+class FileSystem {
   public:
     static bool exists();
 
     // Creates a filename for a given index
-    static String createFileName(int index);
+    static String createFileName(uint32_t index);
 
     // Opens a file with the given path in either append or write mode
     static File openFile(fs::FS& fs, const char* const path, bool appendMode = true);
@@ -22,7 +22,7 @@ class SD_controller {
     static void appendFile(int index, const String& message, const char* columnNames);
 
     // Counts the number of files in the root directory
-    static int countNumberOfFiles();
+    static uint32_t countNumberOfFiles();
 
     // Generates a new filename based on the count of existing files
     static String newFilename();

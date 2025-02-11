@@ -47,6 +47,5 @@ class IMUInternalWrapper : public Sensor {
         fileWriter.write('\n');
 
         data.iterator++;
-        metadata.nCollectedDataPoints++;
     }
 };

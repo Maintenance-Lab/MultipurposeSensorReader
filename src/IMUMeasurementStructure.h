@@ -3,8 +3,6 @@
 
 struct MeasurementMetadata {
   int hz;
-  int measurementsIndex;
-  int nCollectedDataPoints;
 };
 
 struct MeasurementConfig {
@@ -17,8 +15,6 @@ struct MeasurementData {
   int seconds;
 };
 
-void resetMeasurementData(MeasurementData& data);
-void resetMeasurementMetadata(MeasurementMetadata& metadata);
 void resetMeasurement(MeasurementData& data, MeasurementMetadata& metadata);
 
 #endif  // IMUMEASUREMENTSTRUCTURE_H  // Include guard end

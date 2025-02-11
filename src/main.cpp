@@ -10,35 +10,36 @@
 #include "sensors/sensor.h"
 #include "sensors/ultrasonic.h"
 #include "ultrasonic.h"
-#include "utils/SD_controller.h"
-#include <M5Core2.h>
+#include "utils/fileSystem.h"
 #include "utils/fileWriter.h"
+#include <M5Core2.h>
 
-const unsigned int timeInterval = 1000;
-int indexMeasurementSession = 0;
-unsigned int lastTime = 0;
-ulong measurementStartTime = 0;
-bool isMeasuring = false;
-bool buttonsRendered = false;
-Sensor* sensor;
-MeasurementData data;
-MeasurementMetadata metadata;
-MeasurementConfig config;
-FileWriter fileWriter;
+constexpr static uint32_t FLUSH_INTERVAL = 1000;
+
+static uint32_t s_indexMeasurementSession = 0;
+static ulong s_measurementStartTime = 0;
+static bool s_isMeasuring = false;
+static bool s_shouldRender = true;
+static Sensor* s_activeSensor;
+static MeasurementData data;
+static MeasurementMetadata metadata;
+static MeasurementConfig config;
+static FileWriter fileWriter(FLUSH_INTERVAL);
+static bool s_sdCardExists = false;
 
 void m5SetDefaultSettings() {
     M5.Lcd.setTextSize(2);
     M5.Lcd.fillScreen(BLACK);
     M5.Lcd.setTextColor(WHITE);
-    M5.Axp.SetLcdVoltage(2700); //3000 very bright, 2500 way too dark, 2600 very dim
+    M5.Axp.SetLcdVoltage(2700); // 3000 very bright, 2500 way too dark, 2600 very dim
 }
 
 void setup() {
     M5.begin();
     INITLOG();
     m5SetDefaultSettings();
-    indexMeasurementSession = SD_controller::countNumberOfFiles();
-    sensor = new ENV3Wrapper();
+    s_indexMeasurementSession = FileSystem::countNumberOfFiles();
+    s_activeSensor = new ENV3Wrapper();
 }
 
 int sensorTypeIndex = 0;
@@ -46,34 +47,25 @@ void switchSensorType() {
     if (sensorTypeIndex > 4) {
         sensorTypeIndex = 0;
     }
-    delete sensor;
+    delete s_activeSensor;
     switch (sensorTypeIndex) {
     case 0:
-        sensor = new UltrasonicWrapper();
+        s_activeSensor = new UltrasonicWrapper();
         break;
     case 1:
-        sensor = new IMUExternalWrapper();
+        s_activeSensor = new IMUExternalWrapper();
         break;
     case 2:
-        sensor = new IMUInternalWrapper();
+        s_activeSensor = new IMUInternalWrapper();
         break;
     case 3:
-        sensor = new MotionWrapper();
+        s_activeSensor = new MotionWrapper();
         break;
     case 4:
-        sensor = new ENV3Wrapper();
+        s_activeSensor = new ENV3Wrapper();
         break;
     }
     sensorTypeIndex++;
-}
-
-void saveData(MeasurementMetadata& metadata, MeasurementConfig& config) {
-    metadata.measurementsIndex += metadata.nCollectedDataPoints;
-    //SD_controller::appendFile(indexMeasurementSession, accumulatedData, sensor->getColumnNames().c_str());
-
-    // Reset metadata
-    metadata.nCollectedDataPoints = 0;
-    //accumulatedData = "";
 }
 
 void updateDisplay(MeasurementData& data, MeasurementMetadata& metadata, MeasurementConfig& config) {
@@ -83,68 +75,78 @@ void updateDisplay(MeasurementData& data, MeasurementMetadata& metadata, Measure
 }
 
 void startMeasurement() {
-    measurementStartTime = millis();
-    //accumulatedData = "";
+    s_measurementStartTime = millis();
     resetMeasurement(data, metadata);
-    fileWriter.open(sensor->getColumnNames().c_str());
-    indexMeasurementSession = SD_controller::countNumberOfFiles();
-    sensor->begin(config);
+    fileWriter.open(s_activeSensor->getColumnNames().c_str());
+    s_activeSensor->begin(config);
 }
 
 void checkButtonEvent() {
     M5.update();
 
-    if (M5.BtnA.wasPressed()) {
-        isMeasuring = !isMeasuring;
-        if (isMeasuring) {
+    if (s_sdCardExists && M5.BtnA.wasPressed()) {
+        s_isMeasuring = !s_isMeasuring;
+        s_indexMeasurementSession = FileSystem::countNumberOfFiles();
+
+        if (s_isMeasuring) {
             startMeasurement();
         } else {
-            //accumulatedData = "";
             resetMeasurement(data, metadata);
+            fileWriter.close();
         }
-        buttonsRendered = false;
-        //indexMeasurementSession = SD_controller::countNumberOfFiles();
+        s_shouldRender = true;
     }
 
     if (M5.BtnC.wasPressed()) {
         switchSensorType();
-        buttonsRendered = false;
+        s_shouldRender = true;
+    }
+}
+
+// This does not work since the M5stack does not properly detect changes. Needs work.
+void checkForSDCardChange(){
+    bool sdCardExists = FileSystem::exists();
+    if (sdCardExists != s_sdCardExists) {
+        s_sdCardExists = sdCardExists;
+        s_shouldRender = true;
+    }
+}
+
+void render(){
+    if (s_shouldRender) {
+        M5.Lcd.fillRect(0, 0, 320, 240, BLACK);
+        if (s_isMeasuring) {
+            IMU_RENDER::renderMeasuringScreen();
+            resetMeasurement(data, metadata);
+        } else {
+            IMU_RENDER::renderStartScreen(s_indexMeasurementSession, s_activeSensor->getName(), s_sdCardExists);
+        }
+        s_shouldRender = false;
     }
 }
 
 void loop() {
-    if (isMeasuring) {
-        unsigned int currentTime = millis();
+    checkForSDCardChange();
 
-        if (!buttonsRendered) { // check if button was already rendered to avoid flickering
-            M5.Lcd.fillRect(0, 0, 320, 240, BLACK);
-            IMU_RENDER::renderMeasuringScreen();
+    if (s_isMeasuring) {
+        uint32_t currentTime = millis();
 
-            resetMeasurement(data, metadata);
-            buttonsRendered = true;
-        }
-
-        if (currentTime - lastTime >= timeInterval) {
+        static uint32_t lastTime = 0;
+        if (currentTime - lastTime >= 1000) { // Every second
             updateDisplay(data, metadata, config);
             lastTime = currentTime;
             data.seconds++;
             metadata.hz = 0;
         }
 
-        sensor->gatherAndAccumulateData(fileWriter, config, metadata, data, millis() - measurementStartTime);
-
-        // Save data if needed when the number of data points is reached
-        if (metadata.nCollectedDataPoints >= config.saveAtNDataPoints) {
-            saveData(metadata, config);
-        }
+        uint32_t lastTime1 = millis();
+        s_activeSensor->gatherAndAccumulateData(fileWriter, config, metadata, data, currentTime - s_measurementStartTime);
+        LOGLN(millis() - lastTime1);
 
         metadata.hz++;
-    } else {
-        if (!buttonsRendered) { // check if button was already rendered to avoid flickering
-            M5.Lcd.fillRect(0, 0, 320, 240, BLACK);
-            IMU_RENDER::renderStartScreen(indexMeasurementSession, sensor->getName());
-            buttonsRendered = true;
-        }
     }
     checkButtonEvent();
+    render();
+
+    fileWriter.update();
 }

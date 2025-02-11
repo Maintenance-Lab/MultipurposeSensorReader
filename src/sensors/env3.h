@@ -41,6 +41,5 @@ class ENV3Wrapper : public Sensor {
         fileWriter.write('\n');
 
         data.iterator++;
-        metadata.nCollectedDataPoints++;
     }
 };

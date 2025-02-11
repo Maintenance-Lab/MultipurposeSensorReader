@@ -38,7 +38,6 @@ class MotionWrapper : public Sensor {
             fileWriter.write('\n');
 
             data.iterator++;
-            metadata.nCollectedDataPoints++;
             // delay(500);
                 // }
             // }

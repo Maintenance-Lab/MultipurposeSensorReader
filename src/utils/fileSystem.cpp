@@ -1,16 +1,14 @@
-#include "SD_controller.h"
+#include "fileSystem.h"
 
-//const char* kDataFileColumnNames = "iterator,seconds,accX,accY,accZ,gyroX,gyroY,gyroZ\r\n";
-
-bool SD_controller::exists(){
+bool FileSystem::exists(){
   return SD.cardType() == CARD_SD || SD.cardType() == CARD_SDHC;
 }
 
-String SD_controller::createFileName(int index) {
+String FileSystem::createFileName(uint32_t index) {
   return "/data_" + String(index) + ".txt";
 }
 
-File SD_controller::openFile(fs::FS &fs, const char *path, bool appendMode) {
+File FileSystem::openFile(fs::FS &fs, const char *path, bool appendMode) {
   File file = appendMode ? fs.open(path, FILE_APPEND) : fs.open(path, FILE_WRITE);
 
   if (!file) {
@@ -24,14 +22,14 @@ File SD_controller::openFile(fs::FS &fs, const char *path, bool appendMode) {
   return file;
 }
 
-void SD_controller::createFile(fs::FS &fs, const char *path, const char* columnNames) {
+void FileSystem::createFile(fs::FS &fs, const char *path, const char* columnNames) {
   File file = openFile(fs, path);
   if (!file) return;
   file.print(columnNames);
   file.close();
 }
 
-void SD_controller::appendFile(int index, const String &accumulatedData, const char* columnNames) {
+void FileSystem::appendFile(int index, const String &accumulatedData, const char* columnNames) {
   String path = createFileName(index);
   if (!SD.exists(path.c_str())) {
     createFile(SD, path.c_str(), columnNames);
@@ -43,8 +41,8 @@ void SD_controller::appendFile(int index, const String &accumulatedData, const c
   file.close();
 }
 
-int SD_controller::countNumberOfFiles() {
-  int fileCount = 0;
+uint32_t FileSystem::countNumberOfFiles() {
+  uint32_t fileCount = 0;
   File root = SD.open("/");
   while (File entry = root.openNextFile()) {
     if (!entry.isDirectory()) {
@@ -55,6 +53,6 @@ int SD_controller::countNumberOfFiles() {
   return fileCount;
 }
 
-String SD_controller::newFilename() {
+String FileSystem::newFilename() {
   return createFileName(countNumberOfFiles());
 }
