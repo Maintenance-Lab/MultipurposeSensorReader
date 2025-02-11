@@ -139,9 +139,7 @@ void loop() {
             metadata.hz = 0;
         }
 
-        uint32_t lastTime1 = millis();
         s_activeSensor->gatherAndAccumulateData(fileWriter, config, metadata, data, currentTime - s_measurementStartTime);
-        LOGLN(millis() - lastTime1);
 
         metadata.hz++;
     }
