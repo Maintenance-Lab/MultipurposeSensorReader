@@ -6,9 +6,9 @@
 #include <M5Core2.h>
 #include "../logging.h"
 
-class FileWriter {
+class DataLogger {
   public:
-    FileWriter(uint32_t flushInterval) : m_flusher(flushInterval, [this]() { flush(); }) {}
+    DataLogger(uint32_t flushInterval) : m_flusher(flushInterval, [this]() { flush(); }) {}
 
     void open(String header);
     void close();
@@ -16,7 +16,7 @@ class FileWriter {
     template <typename T>
     void write(T value) {
         if (!m_isOpen) {
-            LOGLN("FileWriter is not open!");
+            LOGLN("DataLogger is not open!");
             return;
         }
         m_file.print(value);
@@ -25,7 +25,7 @@ class FileWriter {
     template <typename T>
     void write(T value, int digits) {
         if (!m_isOpen) {
-            LOGLN("FileWriter is not open!");
+            LOGLN("DataLogger is not open!");
             return;
         }
         m_file.print(value, digits);

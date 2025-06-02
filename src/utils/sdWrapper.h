@@ -5,7 +5,7 @@
 #include "SD.h"
 #include <M5Core2.h>
 
-class FileSystem {
+class SDWrapper {
   public:
     static bool exists();
 
@@ -22,7 +22,7 @@ class FileSystem {
     static void appendFile(int index, const String& message, const char* columnNames);
 
     // Counts the number of files in the root directory
-    static uint32_t countNumberOfFiles();
+    static uint32_t countFiles();
 
     // Generates a new filename based on the count of existing files
     static String newFilename();
