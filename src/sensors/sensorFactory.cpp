@@ -1,5 +1,6 @@
 #include "sensorFactory.h"
 #include "env3.h"
+#include "env4.h"
 #include "imu_ext.h"
 #include "imu_int.h"
 #include "motion.h"
@@ -17,6 +18,8 @@ std::unique_ptr<Sensor> SensorFactory::Create(SensorType type) {
         return std::unique_ptr<Sensor>(new MotionWrapper());
     case SensorType::ENV3:
         return std::unique_ptr<Sensor>(new ENV3Wrapper());
+    case SensorType::ENV4:
+        return std::unique_ptr<Sensor>(new ENV4Wrapper());
     default:
         return nullptr;
     }

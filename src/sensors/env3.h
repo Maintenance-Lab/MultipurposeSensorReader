@@ -9,7 +9,7 @@ class ENV3Wrapper : public Sensor {
 
   public:
     String getColumnNames() override { return "iterator,ms,humidity,temp,pressure,altitude\r\n"; }
-    String getName() override { return "Environment Sensor"; }
+    String getName() override { return "Environment Sensor 3"; }
     void begin(MeasurementConfig& config) override {
         if (!qmp.begin(&Wire, QMP6988_SLAVE_ADDRESS_L, 32, 33, 400000U)) {
             Serial.println("Couldn't find QMP6988");

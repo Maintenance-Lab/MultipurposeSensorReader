@@ -12,7 +12,8 @@ enum class SensorType : uint8_t {
     Ultrasonic,
     Motion,
     ENV3,
-    Count 
+    ENV4,
+    Count
 };
 
 class Sensor;
