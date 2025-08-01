@@ -30,12 +30,25 @@ struct MeasurementData {
     void reset() { m_samplesThisSecond = 0; m_elapsedSeconds = 0; m_totalSamples = 0; }
 };
 
+enum class UIState {
+    StartScreen,
+    Measuring,
+    Settings,
+};
+
+enum class subUIState {
+    None,
+    SampleRate,
+    SensorList
+};
+
 struct MeasurementSession {
     uint32_t       m_index          = 0;
     uint64_t       m_startMS        = 0;
     uint64_t       m_lastUpdateMS   = 0;
-    bool           m_isRunning      = false;
     bool           m_needsRender    = true;
+    UIState        m_uiState        = UIState::StartScreen;
+    subUIState     m_subUiState     = subUIState::None;
 
     MeasurementData   m_data{};
     MeasurementConfig m_config{};
@@ -45,6 +58,6 @@ struct MeasurementSession {
 struct AppState {
     bool              m_sdCardPresent   = false;
     SensorType        m_currentSensor   = SensorType::IMUInternal;
-    std::unique_ptr<Sensor> m_activeSensor;
+    std::unique_ptr<Sensor> m_activeSensor = nullptr;
     MeasurementSession m_session;
 };

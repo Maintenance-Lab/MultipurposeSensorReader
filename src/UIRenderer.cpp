@@ -1,6 +1,8 @@
 #include "UIRenderer.h"
 #include "main.h"
 
+#define MAX_MENU_ITEMS 5
+
 int getBatteryPercentage() {
     float batVoltage = M5.Axp.GetBatVoltage();
     if (batVoltage < 3.2f)
@@ -48,8 +50,8 @@ void RenderUI::renderStartScreen(int index, String name, bool sdCardExists, int 
         M5.Lcd.setCursor(20, 240 - 20);
         M5.Lcd.printf("START");
 
-        M5.Lcd.setCursor(140, 240 - 20);
-        M5.Lcd.printf("RATE");
+        M5.Lcd.setCursor(110, 240 - 20);
+        M5.Lcd.printf("SETTINGS");
 
         M5.Lcd.setCursor(230, 240 - 20);
         M5.Lcd.printf("SENSOR");
@@ -75,4 +77,41 @@ void RenderUI::renderStatistics(MeasurementData& data, MeasurementConfig& config
 
     M5.Lcd.setCursor(30, 240 - 20);
     M5.Lcd.printf("STOP");
+}
+
+void RenderUI::renderSettings(char menuItems[][MENU_STRING_LENGTH], int idx, size_t lengthMenuItems) {
+    drawTitle("");
+    drawBattery();
+
+    M5.Lcd.setCursor(20, 240 - 20);
+    M5.Lcd.printf("SELECT");
+
+    M5.Lcd.setCursor(150, 240 - 20);
+    M5.Lcd.printf("UP");
+
+    M5.Lcd.setCursor(240, 240 - 20);
+    M5.Lcd.printf("DOWN");
+
+    int items = MAX_MENU_ITEMS;
+    if (lengthMenuItems < MAX_MENU_ITEMS) {
+        items = lengthMenuItems;
+    }
+
+    int startIdx = 0;
+    int endOfList = lengthMenuItems -MAX_MENU_ITEMS;
+    if (idx < MAX_MENU_ITEMS) {
+        startIdx = 0;
+    } else if (idx >= endOfList) {
+        startIdx = endOfList;
+    } else {
+        startIdx = idx - 2;
+    }
+
+    for (int i = startIdx; i < (items + startIdx); i++) {
+        M5.Lcd.setCursor(10, 50 + (i -startIdx) * 20);
+        if (i == idx) {
+            M5.Lcd.print("-> ");
+        }
+        M5.Lcd.print(menuItems[i]);
+    }
 }

@@ -1,10 +1,11 @@
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include "main.h"
 #include "AXP192.h"
+#include "UIRenderer.h"
 #include "esp32_digital_led_lib.h"
 #include "logging.h"
-#include "UIRenderer.h"
-#include "sensors/sensorFactory.h"
 #include "sensors/motion.h"
+#include "sensors/sensorFactory.h"
 #include "sensors/ultrasonic.h"
 #include "utils/sdWrapper.h"
 #include <M5Core2.h>
@@ -12,6 +13,8 @@
 constexpr uint32_t DISPLAY_UPDATE_INTERVAL = 1000;
 
 static AppState s_app;
+static int idx = 0;
+static const int rates[] = {1, 10, 25, 50, 100, 200, 250, 500};
 
 void initializeDisplay() {
     M5.Lcd.setTextSize(2);
@@ -30,47 +33,119 @@ void startMeasurement() {
 
 void toggleRunState() {
     auto& sess = s_app.m_session;
-    sess.m_isRunning = !sess.m_isRunning;
+    if (sess.m_uiState != UIState::Measuring) {
+        sess.m_uiState = UIState::Measuring;
+    } else {
+        sess.m_uiState = UIState::StartScreen;
+    }
     sess.m_index = SDWrapper::countFiles();
 
-    if (sess.m_isRunning) {
+    if (sess.m_uiState == UIState::Measuring) {
         startMeasurement();
     } else {
         sess.m_data.reset();
         sess.m_logger.close();
         sess.m_needsRender = true;
+        sess.m_uiState = UIState::StartScreen;
     }
 }
 
 void handleButtonEvents() {
     M5.update();
+    auto& sess = s_app.m_session;
 
-    if (s_app.m_sdCardPresent && M5.BtnA.wasPressed()) {
-        toggleRunState();
-    }
+    if (M5.BtnA.wasPressed()) {
+        if (s_app.m_sdCardPresent && (sess.m_uiState == UIState::Measuring || sess.m_uiState == UIState::StartScreen)) {
+            toggleRunState();
+        } else if (sess.m_uiState == UIState::Settings) {
+            // idx  0 is for going back to the previous menu
+            if (idx == 0) {
+                if (sess.m_subUiState == subUIState::None) {
+                    if (sess.m_subUiState == subUIState::SensorList) {
+                        // create a new sensor instance with the new configs
+                        Serial.printf("new column names: %s\n", s_app.m_activeSensor->getColumnNames().c_str());
+                    }
+                    sess.m_uiState = UIState::StartScreen;
+                } else {
+                    sess.m_subUiState = subUIState::None;
+                }
+                sess.m_needsRender = true;
+            } else {
+                // update the setting for each sub state
+                if (sess.m_subUiState == subUIState::None) {
+                    if (idx == 1) {
+                        sess.m_subUiState = subUIState::SampleRate;
+                    } 
+                    idx = 0;
+                    sess.m_needsRender = true;
+                } else {
+                    if (sess.m_subUiState == subUIState::SampleRate) {
+                        // Update the sample rate based on the current index
+                        sess.m_config.m_sampleRateHz = rates[idx - 1]; //  as idx 0 is "back"
 
-    if (M5.BtnB.wasPressed() && !s_app.m_session.m_isRunning) {
-        static const int rates[] = { 1, 10, 25, 50, 100, 200, 250, 500 };
-        int current = s_app.m_session.m_config.m_sampleRateHz;
-        int idx = 0;
-        for (int i = 0; i < (int)(sizeof(rates)/sizeof(rates[0])); i++) {
-            if (rates[i] == current) {
-                idx = i;
-                break;
+                        // return to the main settings menu
+                        sess.m_subUiState = subUIState::None;
+                    } 
+
+                    sess.m_needsRender = true;
+                }
             }
         }
-        idx = (idx + 1) % (sizeof(rates)/sizeof(rates[0]));
-        s_app.m_session.m_config.m_sampleRateHz = rates[idx];
-        s_app.m_session.m_needsRender = true;
+    }
+
+    if (M5.BtnB.wasPressed()) {
+        if (sess.m_uiState == UIState::StartScreen) {
+            sess.m_uiState = UIState::Settings;
+            sess.m_needsRender = true;
+            idx = 0; // Reset index for settings menu
+        } else if (sess.m_uiState == UIState::Settings) {
+            idx--;
+            sess.m_needsRender = true;
+        }
     }
 
     if (M5.BtnC.wasPressed()) {
-        auto next = (uint8_t)s_app.m_currentSensor + 1;
-        if (next >= (uint8_t)SensorType::Count)
-            next = 0;
-        s_app.m_currentSensor = static_cast<SensorType>(next);
-        s_app.m_activeSensor = SensorFactory::Create(s_app.m_currentSensor);
-        s_app.m_session.m_needsRender = true;
+        if (sess.m_uiState == UIState::StartScreen) {
+            auto next = (uint8_t)s_app.m_currentSensor + 1;
+            if (next >= (uint8_t)SensorType::Count)
+                next = 0;
+            s_app.m_currentSensor = static_cast<SensorType>(next);
+            s_app.m_activeSensor = SensorFactory::Create(s_app.m_currentSensor);
+            sess.m_needsRender = true;
+        } else if (sess.m_uiState == UIState::Settings) {
+            idx++;
+            sess.m_needsRender = true;
+        }
+    }
+}
+
+void handleSettingsState() {
+    auto& sess = s_app.m_session;
+    if (sess.m_subUiState == subUIState::None) {
+        char menuItems[][MENU_STRING_LENGTH] = {"Start Screen", "sample rate"};
+        size_t length = sizeof(menuItems) / sizeof(menuItems[0]);
+        // under and over index handling
+        if (idx < 0) {
+            idx = length - 1; // wrap around to the last item
+        } else if (idx >= length) {
+            idx = 0;
+        }
+
+        RenderUI::renderSettings(menuItems, idx, length);
+    } else {
+        if (sess.m_subUiState == subUIState::SampleRate) {
+            char menuItems[][MENU_STRING_LENGTH] =
+             {"Setting Screen", "1 Hz",   "10 Hz",  "25 Hz", "50 Hz", "100 Hz", "200 Hz", "250 Hz", "500 Hz"};
+            size_t length = sizeof(menuItems) / sizeof(menuItems[0]);
+
+            if (idx < 0) {
+                idx = length;
+            } else if (idx >= length) {
+                idx = 0;
+            }
+
+            RenderUI::renderSettings(menuItems, idx, length);
+        }
     }
 }
 
@@ -111,16 +186,20 @@ void maybeRefreshStats() {
 }
 
 void renderIfNeeded() {
-    if (!s_app.m_session.m_needsRender)
+    auto& sess = s_app.m_session;
+    if (!sess.m_needsRender)
         return;
 
     clearScreen();
-    if (s_app.m_session.m_isRunning) {
-        RenderUI::renderStatistics(s_app.m_session.m_data, s_app.m_session.m_config, s_app.m_activeSensor->getName());
-    } else {
-        RenderUI::renderStartScreen(s_app.m_session.m_index, s_app.m_activeSensor->getName(), s_app.m_sdCardPresent, s_app.m_session.m_config.m_sampleRateHz);
+    if (sess.m_uiState == UIState::Measuring) {
+        RenderUI::renderStatistics(sess.m_data, sess.m_config, s_app.m_activeSensor->getName());
+    } else if (sess.m_uiState == UIState::StartScreen) {
+        RenderUI::renderStartScreen(sess.m_index, s_app.m_activeSensor->getName(), s_app.m_sdCardPresent,
+                                    sess.m_config.m_sampleRateHz);
+    } else if (sess.m_uiState == UIState::Settings) {
+        handleSettingsState();
     }
-    s_app.m_session.m_needsRender = false;
+    sess.m_needsRender = false;
 }
 
 void setup() {
@@ -130,7 +209,6 @@ void setup() {
     s_app.m_sdCardPresent = SDWrapper::exists();
     s_app.m_session.m_index = SDWrapper::countFiles();
     s_app.m_activeSensor = SensorFactory::Create(s_app.m_currentSensor);
-
     initializeDisplay();
     renderIfNeeded();
 }
@@ -139,7 +217,7 @@ void loop() {
     // UpdateSdCardPresence(); This does not work, needs a different approach
     handleButtonEvents();
 
-    if (s_app.m_session.m_isRunning) {
+    if (s_app.m_session.m_uiState == UIState::Measuring) {
         performMeasurementStep();
         maybeRefreshStats();
     }
