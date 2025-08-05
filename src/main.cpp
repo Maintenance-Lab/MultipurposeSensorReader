@@ -4,9 +4,7 @@
 #include "UIRenderer.h"
 #include "esp32_digital_led_lib.h"
 #include "logging.h"
-#include "sensors/motion.h"
-#include "sensors/sensorFactory.h"
-#include "sensors/ultrasonic.h"
+#include "sensors/allSensorHeaders.h"
 #include "utils/sdWrapper.h"
 #include <M5Core2.h>
 
@@ -50,6 +48,56 @@ void toggleRunState() {
     }
 }
 
+void detectSensor() {
+    int i2cAddresses[2] = {0};
+    auto& currentSensor = s_app.m_currentSensor;
+
+    Wire.begin(32, 33);
+    // find all i2c devices
+    for (int i = 0; i < 127; i++) {
+        Wire.beginTransmission(i);
+        if (!Wire.endTransmission()) {
+            if (i2cAddresses[0]) {
+                i2cAddresses[1] = i;
+            } else {
+                i2cAddresses[0] = i;
+            }
+        }
+    }
+
+    // match the devices
+    if (i2cAddresses[0] == I2C_MPU6886_DEFAULT_ADDRESS) {
+        if (currentSensor != SensorType::IMUExternal) {
+            currentSensor = SensorType::IMUExternal;
+            s_app.m_activeSensor = SensorFactory::Create(currentSensor);
+        }
+    } else if (i2cAddresses[0] == SHT3X_I2C_ADDR && i2cAddresses[1] == QMP6988_SLAVE_ADDRESS_L) {
+        if (currentSensor != SensorType::ENV3) {
+            currentSensor = SensorType::ENV3;
+            s_app.m_activeSensor = SensorFactory::Create(currentSensor);
+        }
+    } else if (i2cAddresses[0] == SHT4x_DEFAULT_ADDR && i2cAddresses[1] == BMP280_I2C_ADDR) {
+        if (currentSensor != SensorType::ENV4) {
+            currentSensor = SensorType::ENV4;
+            s_app.m_activeSensor = SensorFactory::Create(currentSensor);
+        }
+    } else if (i2cAddresses[0] == SHT4x_DEFAULT_ADDR && i2cAddresses[1] == BMP280_I2C_ADDR) {
+        if (currentSensor != SensorType::Ultrasonic) {
+            currentSensor = SensorType::Ultrasonic;
+            s_app.m_activeSensor = SensorFactory::Create(currentSensor);
+        }
+    } else {
+        // currentSensor = SensorType::IMUInternal;
+        // s_app.m_activeSensor = SensorFactory::Create(currentSensor);
+        auto& sess = s_app.m_session;
+        sess.m_uiState = UIState::Settings;
+        sess.m_subUiState = subUIState::DetectSensor;
+    }
+
+    Wire.end();
+    s_app.m_session.m_needsRender = true;
+}
+
 void handleButtonEvents() {
     M5.update();
     auto& sess = s_app.m_session;
@@ -58,6 +106,20 @@ void handleButtonEvents() {
         if (s_app.m_sdCardPresent && (sess.m_uiState == UIState::Measuring || sess.m_uiState == UIState::StartScreen)) {
             toggleRunState();
         } else if (sess.m_uiState == UIState::Settings) {
+            if (sess.m_subUiState == subUIState::DetectSensor) {
+                sess.m_uiState = UIState::StartScreen;
+                sess.m_subUiState = subUIState::None;
+                if (idx == 0) {
+                    s_app.m_currentSensor = SensorType::IMUInternal;
+                    s_app.m_activeSensor = SensorFactory::Create(s_app.m_currentSensor);
+                } else if (idx == 1) {
+                    s_app.m_currentSensor = SensorType::Motion;
+                    s_app.m_activeSensor = SensorFactory::Create(s_app.m_currentSensor);
+                } else if (idx == 2) {
+                    s_app.m_currentSensor = SensorType::Ultrasonic;
+                    s_app.m_activeSensor = SensorFactory::Create(s_app.m_currentSensor);
+                }
+            }
             // idx  0 is for going back to the previous menu
             if (idx == 0) {
                 if (sess.m_subUiState == subUIState::None) {
@@ -107,12 +169,13 @@ void handleButtonEvents() {
 
     if (M5.BtnC.wasPressed()) {
         if (sess.m_uiState == UIState::StartScreen) {
-            auto next = (uint8_t)s_app.m_currentSensor + 1;
-            if (next >= (uint8_t)SensorType::Count)
-                next = 0;
-            s_app.m_currentSensor = static_cast<SensorType>(next);
-            s_app.m_activeSensor = SensorFactory::Create(s_app.m_currentSensor);
-            sess.m_needsRender = true;
+            // auto next = (uint8_t)s_app.m_currentSensor + 1;
+            // if (next >= (uint8_t)SensorType::Count)
+            //     next = 0;
+            // s_app.m_currentSensor = static_cast<SensorType>(next);
+            // s_app.m_activeSensor = SensorFactory::Create(s_app.m_currentSensor);
+            // sess.m_needsRender = true;
+            detectSensor();
         } else if (sess.m_uiState == UIState::Settings) {
             idx++;
             sess.m_needsRender = true;
@@ -174,6 +237,17 @@ void handleSettingsState() {
                 strncpy(sensorList[i + 1], buffer, MENU_STRING_LENGTH - 1);
             }
             RenderUI::renderSettings(sensorList, idx, length);
+        } else if (sess.m_subUiState == subUIState::DetectSensor) {
+            char sensors[][MENU_STRING_LENGTH] = {"Internal IMU", "Motion", "Distance"};
+            size_t length = sizeof(sensors) / sizeof(sensors[0]);
+
+                        if (idx < 0) {
+                idx = length - 1;
+            } else if (idx >= length) {
+                idx = 0;
+            }
+
+            RenderUI::renderSettings(sensors, idx, length);
         }
     }
 }

@@ -39,7 +39,8 @@ enum class UIState {
 enum class subUIState {
     None,
     SampleRate,
-    SensorList
+    SensorList,
+    DetectSensor // is only for switching between sensors that do not use I2C
 };
 
 struct MeasurementSession {

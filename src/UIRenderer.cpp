@@ -53,6 +53,8 @@ void RenderUI::renderStartScreen(int index, String name, bool sdCardExists, int 
         M5.Lcd.setCursor(110, 240 - 20);
         M5.Lcd.printf("SETTINGS");
 
+        M5.Lcd.setCursor(230, 220 - 20);
+        M5.Lcd.printf("DETECT");
         M5.Lcd.setCursor(230, 240 - 20);
         M5.Lcd.printf("SENSOR");
     } else {
