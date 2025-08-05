@@ -34,6 +34,8 @@ class DataLogger {
     uint32_t getNewFileNameIndex();
     void update();
 
+    void printf(const char *format, ...);
+
   private:
     PeriodicExecutor m_flusher;
     String m_fileName;

@@ -1,8 +1,10 @@
 #include "dataLogger.h"
 #include "sdWrapper.h"
+#include <cstdio>
+#include <cstdarg>
 
 void DataLogger::open(String header) {
-    if(m_isOpen){
+    if (m_isOpen) {
         close();
     }
     m_fileName = SDWrapper::newFilename();
@@ -16,12 +18,28 @@ void DataLogger::close() {
     m_isOpen = false;
 }
 
-void DataLogger::update(){
-    m_flusher.update();
-}
+void DataLogger::update() { m_flusher.update(); }
 
-void DataLogger::flush(){
-    if(m_isOpen){
+void DataLogger::flush() {
+    if (m_isOpen) {
         m_file.flush();
     }
+}
+
+void DataLogger::printf(const char* format, ...) {
+    constexpr size_t BufferSize = 256;
+    char buffer[BufferSize];
+
+    if (!m_isOpen) {
+        LOGLN("DataLogger is not open!");
+        return;
+    }
+
+    va_list args;
+    va_start(args, format);
+    std::vsnprintf(buffer, BufferSize, format, args);
+    va_end(args);
+
+    Serial.printf("DataLogger printf: %s\n", buffer);
+    m_file.print(buffer);
 }
