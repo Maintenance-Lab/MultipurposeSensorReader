@@ -7,17 +7,16 @@ class UltrasonicWrapper : public Sensor {
     Ultrasonic ultrasonic = Ultrasonic(33);
 
   public:
-    String getColumnNames() { return "iterator,ms,distance\r\n"; }
+    UltrasonicWrapper() {
+        numberOfSensors = 1;
+        sensorList[0] = {sensingType::distance, true};
+    }
+
     String getName() { return "Ultrasonic Sensor"; }
     void begin(MeasurementConfig& config) {}
     void gatherAndAccumulate(DataLogger& dataLogger, MeasurementData& data, uint64_t msSinceStart) {
         long measureInCentimeters = ultrasonic.MeasureInCentimeters();
 
-        dataLogger.write(data.m_totalSamples);
-        dataLogger.write(',');
-        dataLogger.write(msSinceStart);
-        dataLogger.write(',');
-        dataLogger.write(measureInCentimeters, 2);
-        dataLogger.write('\n');
+        dataLogger.printf("%u,%llu,%.2ld\n", data.m_totalSamples, msSinceStart, measureInCentimeters);
     }
 };

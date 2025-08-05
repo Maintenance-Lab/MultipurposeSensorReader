@@ -61,10 +61,6 @@ void handleButtonEvents() {
             // idx  0 is for going back to the previous menu
             if (idx == 0) {
                 if (sess.m_subUiState == subUIState::None) {
-                    if (sess.m_subUiState == subUIState::SensorList) {
-                        // create a new sensor instance with the new configs
-                        Serial.printf("new column names: %s\n", s_app.m_activeSensor->getColumnNames().c_str());
-                    }
                     sess.m_uiState = UIState::StartScreen;
                 } else {
                     sess.m_subUiState = subUIState::None;
@@ -75,7 +71,9 @@ void handleButtonEvents() {
                 if (sess.m_subUiState == subUIState::None) {
                     if (idx == 1) {
                         sess.m_subUiState = subUIState::SampleRate;
-                    } 
+                    } else if (idx == 2) {
+                        sess.m_subUiState = subUIState::SensorList;
+                    }
                     idx = 0;
                     sess.m_needsRender = true;
                 } else {
@@ -85,7 +83,10 @@ void handleButtonEvents() {
 
                         // return to the main settings menu
                         sess.m_subUiState = subUIState::None;
-                    } 
+                    } else if (sess.m_subUiState == subUIState::SensorList) {
+                        auto& sensor = s_app.m_activeSensor;
+                        sensor->toggleSensorState(idx - 1); // idx 0 is "back", so we start from 1
+                    }
 
                     sess.m_needsRender = true;
                 }
@@ -122,11 +123,17 @@ void handleButtonEvents() {
 void handleSettingsState() {
     auto& sess = s_app.m_session;
     if (sess.m_subUiState == subUIState::None) {
-        char menuItems[][MENU_STRING_LENGTH] = {"Start Screen", "sample rate"};
+        char menuItems[][MENU_STRING_LENGTH] = {"Start Screen", "sample rate", "sensor list"};
         size_t length = sizeof(menuItems) / sizeof(menuItems[0]);
+
+        // do not show the sensor when there is only one sensor
+        if (s_app.m_activeSensor->getNumberOfSensors() <= 1) {
+            length -= 1;
+        }
+
         // under and over index handling
         if (idx < 0) {
-            idx = length - 1; // wrap around to the last item
+            idx = length - 1;
         } else if (idx >= length) {
             idx = 0;
         }
@@ -134,8 +141,8 @@ void handleSettingsState() {
         RenderUI::renderSettings(menuItems, idx, length);
     } else {
         if (sess.m_subUiState == subUIState::SampleRate) {
-            char menuItems[][MENU_STRING_LENGTH] =
-             {"Setting Screen", "1 Hz",   "10 Hz",  "25 Hz", "50 Hz", "100 Hz", "200 Hz", "250 Hz", "500 Hz"};
+            char menuItems[][MENU_STRING_LENGTH] = {"Setting Screen", "1 Hz",   "10 Hz",  "25 Hz", "50 Hz",
+                                                    "100 Hz",         "200 Hz", "250 Hz", "500 Hz"};
             size_t length = sizeof(menuItems) / sizeof(menuItems[0]);
 
             if (idx < 0) {
@@ -145,6 +152,28 @@ void handleSettingsState() {
             }
 
             RenderUI::renderSettings(menuItems, idx, length);
+        } else if (sess.m_subUiState == subUIState::SensorList) {
+            auto& sensor = s_app.m_activeSensor;
+            const int numberOfSensors = sensor->getNumberOfSensors();
+            Serial.printf("number of sensors: %d\n", numberOfSensors);
+            char sensorList[numberOfSensors + 1][MENU_STRING_LENGTH] = {0};
+            size_t length = sizeof(sensorList) / sizeof(sensorList[0]);
+            strncpy(sensorList[0], "Setting Screen", MENU_STRING_LENGTH - 1);
+
+            if (idx < 0) {
+                idx = length - 1;
+            } else if (idx >= length) {
+                idx = 0;
+            }
+
+            for (int i = 0; i < numberOfSensors; i++) {
+                char buffer[MENU_STRING_LENGTH] = {0};
+                const char* sensorName = sensor->getSensorList(i);
+                snprintf(buffer, sizeof(buffer), "%s %s", sensorName,
+                         sensor->isSensorActive(i) ? "(active)" : "(inactive)");
+                strncpy(sensorList[i + 1], buffer, MENU_STRING_LENGTH - 1);
+            }
+            RenderUI::renderSettings(sensorList, idx, length);
         }
     }
 }

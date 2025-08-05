@@ -6,7 +6,11 @@ class MotionWrapper : public Sensor {
     // bool m_detectedLastTime = false;
 
   public:
-    String getColumnNames() override { return "Iterator,ms,detected\r\n"; }
+    MotionWrapper() {
+        numberOfSensors = 1;
+        sensorList[0] = {sensingType::motion, true};
+    }
+
     String getName() override { return "Motion Sensor"; }
     void begin(MeasurementConfig& config) override {
         pinMode(36, INPUT);
@@ -18,15 +22,6 @@ class MotionWrapper : public Sensor {
         // m_detectedLastTime = detected;
         // if (detected) { // Only log if detected, don't log when not detected
 
-        dataLogger.write(data.m_totalSamples);
-        dataLogger.write(',');
-        dataLogger.write(msSinceStart);
-        dataLogger.write(',');
-        dataLogger.write(detected);
-        dataLogger.write('\n');
-
-        // delay(500);
-        // }
-        // }
+        dataLogger.printf("%u,%llu,%d\n", data.m_totalSamples, msSinceStart, detected);
     }
 };
