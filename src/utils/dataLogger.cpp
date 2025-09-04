@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdarg>
 
-void DataLogger::open(String header) {
+bool DataLogger::open(String header) {
     if (m_isOpen) {
         close();
     }
@@ -11,6 +11,10 @@ void DataLogger::open(String header) {
     SDWrapper::createFile(SD, m_fileName.c_str(), header.c_str());
     m_file = SD.open(m_fileName, FILE_APPEND);
     m_isOpen = true;
+    if (!m_file) {
+        m_isOpen = false;
+    }
+    return m_isOpen;
 }
 
 void DataLogger::close() {
@@ -30,16 +34,10 @@ void DataLogger::printf(const char* format, ...) {
     constexpr size_t BufferSize = 256;
     char buffer[BufferSize];
 
-    if (!m_isOpen) {
-        LOGLN("DataLogger is not open!");
-        return;
-    }
-
     va_list args;
     va_start(args, format);
     std::vsnprintf(buffer, BufferSize, format, args);
     va_end(args);
 
-    Serial.printf("DataLogger printf: %s\n", buffer);
     m_file.print(buffer);
 }

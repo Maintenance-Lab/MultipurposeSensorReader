@@ -3,16 +3,21 @@
 #include "AXP192.h"
 #include "UIRenderer.h"
 #include "esp32_digital_led_lib.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "logging.h"
 #include "sensors/allSensorHeaders.h"
 #include "utils/sdWrapper.h"
 #include <M5Core2.h>
 
 constexpr uint32_t DISPLAY_UPDATE_INTERVAL = 1000;
+constexpr uint32_t BUTTON_POLL_INTERVAL = ((1000 / 30) / portTICK_PERIOD_MS); // 30 times per second, second to ticks
+constexpr uint32_t MAIN_TASK_DELAY = 100 / portTICK_PERIOD_MS;    // 100 ms
 
 static AppState s_app;
 static int idx = 0;
 static const int rates[] = {1, 10, 25, 50, 100, 200, 250, 500};
+TaskHandle_t buttonTaskHandle;
 
 void initializeDisplay() {
     M5.Lcd.setTextSize(2);
@@ -21,16 +26,19 @@ void initializeDisplay() {
     M5.Axp.SetLcdVoltage(2700);
 }
 
-void startMeasurement() {
-    auto& sess = s_app.m_session;
+void startMeasurement(AppState& app) {
+    auto& sess = app.m_session;
     sess.m_startMS = millis();
     sess.m_data.reset();
-    sess.m_logger.open(s_app.m_activeSensor->getColumnNames().c_str());
-    s_app.m_activeSensor->begin(sess.m_config);
+    bool loggerOpened = sess.m_logger.open(app.m_activeSensor->getColumnNames().c_str());
+    if (!loggerOpened) {
+        LOGLN("Failed to open data logger!");
+    }
+    app.m_activeSensor->begin(sess.m_config);
 }
 
-void toggleRunState() {
-    auto& sess = s_app.m_session;
+void toggleRunState(AppState& app) {
+    auto& sess = app.m_session;
     if (sess.m_uiState != UIState::Measuring) {
         sess.m_uiState = UIState::Measuring;
     } else {
@@ -39,7 +47,7 @@ void toggleRunState() {
     sess.m_index = SDWrapper::countFiles();
 
     if (sess.m_uiState == UIState::Measuring) {
-        startMeasurement();
+        startMeasurement(app);
     } else {
         sess.m_data.reset();
         sess.m_logger.close();
@@ -98,13 +106,13 @@ void detectSensor() {
     s_app.m_session.m_needsRender = true;
 }
 
-void handleButtonEvents() {
+void handleButtonEvents(AppState& app) {
     M5.update();
-    auto& sess = s_app.m_session;
+    auto& sess = app.m_session;
 
     if (M5.BtnA.wasPressed()) {
-        if (s_app.m_sdCardPresent && (sess.m_uiState == UIState::Measuring || sess.m_uiState == UIState::StartScreen)) {
-            toggleRunState();
+        if (app.m_sdCardPresent && (sess.m_uiState == UIState::Measuring || sess.m_uiState == UIState::StartScreen)) {
+            toggleRunState(app);
         } else if (sess.m_uiState == UIState::Settings) {
             if (sess.m_subUiState == subUIState::DetectSensor) {
                 sess.m_uiState = UIState::StartScreen;
@@ -142,7 +150,7 @@ void handleButtonEvents() {
                     if (sess.m_subUiState == subUIState::SampleRate) {
                         // Update the sample rate based on the current index
                         sess.m_config.m_sampleRateHz = rates[idx - 1]; //  as idx 0 is "back"
-
+                        idx = 1;
                         // return to the main settings menu
                         sess.m_subUiState = subUIState::None;
                     } else if (sess.m_subUiState == subUIState::SensorList) {
@@ -183,14 +191,14 @@ void handleButtonEvents() {
     }
 }
 
-void handleSettingsState() {
-    auto& sess = s_app.m_session;
+void handleSettingsState(AppState& app) {
+    auto& sess = app.m_session;
     if (sess.m_subUiState == subUIState::None) {
         char menuItems[][MENU_STRING_LENGTH] = {"Start Screen", "sample rate", "sensor list"};
         size_t length = sizeof(menuItems) / sizeof(menuItems[0]);
 
         // do not show the sensor when there is only one sensor
-        if (s_app.m_activeSensor->getNumberOfSensors() <= 1) {
+        if (app.m_activeSensor->getNumberOfSensors() <= 1) {
             length -= 1;
         }
 
@@ -218,7 +226,7 @@ void handleSettingsState() {
         } else if (sess.m_subUiState == subUIState::SensorList) {
             auto& sensor = s_app.m_activeSensor;
             const int numberOfSensors = sensor->getNumberOfSensors();
-            Serial.printf("number of sensors: %d\n", numberOfSensors);
+
             char sensorList[numberOfSensors + 1][MENU_STRING_LENGTH] = {0};
             size_t length = sizeof(sensorList) / sizeof(sensorList[0]);
             strncpy(sensorList[0], "Setting Screen", MENU_STRING_LENGTH - 1);
@@ -241,7 +249,7 @@ void handleSettingsState() {
             char sensors[][MENU_STRING_LENGTH] = {"Internal IMU", "Motion", "Distance"};
             size_t length = sizeof(sensors) / sizeof(sensors[0]);
 
-                        if (idx < 0) {
+            if (idx < 0) {
                 idx = length - 1;
             } else if (idx >= length) {
                 idx = 0;
@@ -288,8 +296,8 @@ void maybeRefreshStats() {
     }
 }
 
-void renderIfNeeded() {
-    auto& sess = s_app.m_session;
+void renderIfNeeded(AppState& app) {
+    auto& sess = app.m_session;
     if (!sess.m_needsRender)
         return;
 
@@ -300,9 +308,19 @@ void renderIfNeeded() {
         RenderUI::renderStartScreen(sess.m_index, s_app.m_activeSensor->getName(), s_app.m_sdCardPresent,
                                     sess.m_config.m_sampleRateHz);
     } else if (sess.m_uiState == UIState::Settings) {
-        handleSettingsState();
+        handleSettingsState(app);
     }
     sess.m_needsRender = false;
+}
+void buttonTask(void* pvParameters) {
+    AppState& app = *static_cast<AppState*>(pvParameters);
+
+    for (;;) {
+        handleButtonEvents(app);
+        renderIfNeeded(app);
+
+        vTaskDelay(BUTTON_POLL_INTERVAL); // Poll every 30 ms
+    }
 }
 
 void setup() {
@@ -313,18 +331,26 @@ void setup() {
     s_app.m_session.m_index = SDWrapper::countFiles();
     s_app.m_activeSensor = SensorFactory::Create(s_app.m_currentSensor);
     initializeDisplay();
-    renderIfNeeded();
+    renderIfNeeded(s_app);
+
+    xTaskCreate(buttonTask,       // Task function
+                "Button Task",    // Name of the task
+                3096,             // Stack size in words (increased)
+                &s_app,             // Task input parameter
+                2,                // Priority of the task (lowered)
+                &buttonTaskHandle // Task handle
+    );
+    configASSERT(buttonTaskHandle);
 }
 
 void loop() {
     // UpdateSdCardPresence(); This does not work, needs a different approach
-    handleButtonEvents();
 
     if (s_app.m_session.m_uiState == UIState::Measuring) {
         performMeasurementStep();
         maybeRefreshStats();
+        s_app.m_session.m_logger.update();
+    } else {
+        vTaskDelay(MAIN_TASK_DELAY); // Sleep to reduce CPU usage
     }
-
-    renderIfNeeded();
-    s_app.m_session.m_logger.update();
 }

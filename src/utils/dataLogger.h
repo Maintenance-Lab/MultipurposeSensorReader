@@ -10,7 +10,7 @@ class DataLogger {
   public:
     DataLogger(uint32_t flushInterval) : m_flusher(flushInterval, [this]() { flush(); }) {}
 
-    void open(String header);
+    bool open(String header);
     void close();
 
     template <typename T>
