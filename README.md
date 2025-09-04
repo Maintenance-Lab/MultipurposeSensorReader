@@ -2,6 +2,7 @@
  
 This repository contains a PlatformIO-based solution for the M5Stack Core2 to measure and collect data from various sensors. The project is designed to work with the following sensors:
 * [ENV3 (temperature, humidity, preasure)](https://docs.m5stack.com/en/unit/envIII)
+* [ENV4 (temperature, humidity, preasure)](https://docs.m5stack.com/en/unit/envIIIhttps://docs.m5stack.com/en/unit/ENV%E2%85%A3%20Unit)
 * [IMU (inertia measurement unit)](https://docs.m5stack.com/en/unit/IMU)
 * [Motion](https://docs.m5stack.com/en/unit/pir)
 * [Ultrasonic](https://docs.m5stack.com/en/unit/ULTRASONIC%20I2C)
