@@ -5,10 +5,17 @@ ENV4Wrapper::ENV4Wrapper() {
     sensorList[numberOfSensors++] = {sensingType::temperature, true};
     sensorList[numberOfSensors++] = {sensingType::pressure, true};
     sensorList[numberOfSensors++] = {sensingType::altitude, true};
+    LOGLN("Initialized ENV4");
 }
 
 void ENV4Wrapper::gatherAndAccumulate(DataLogger& dataLogger, MeasurementData& data, uint64_t msSinceStart) {
-    sht40.update();
+    if (!beginCalled) {
+        return;
+    }
+
+    if (!sht40.update()) {
+        LOGLN("Failed to update SHT4X");
+    }
 
     // as pressure is required for altitude this we do the read before looping through the sensors
     if (sensorList[3].isActive) { // index of altitude sensor in sensorList

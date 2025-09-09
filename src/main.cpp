@@ -12,7 +12,7 @@
 
 constexpr uint32_t DISPLAY_UPDATE_INTERVAL = 1000;
 constexpr uint32_t BUTTON_POLL_INTERVAL = ((1000 / 30) / portTICK_PERIOD_MS); // 30 times per second, second to ticks
-constexpr uint32_t MAIN_TASK_DELAY = 100 / portTICK_PERIOD_MS;    // 100 ms
+constexpr uint32_t MAIN_TASK_DELAY = 100 / portTICK_PERIOD_MS;                // 100 ms
 
 static AppState s_app;
 static int idx = 0;
@@ -95,8 +95,9 @@ void detectSensor() {
             s_app.m_activeSensor = SensorFactory::Create(currentSensor);
         }
     } else {
-        // currentSensor = SensorType::IMUInternal;
-        // s_app.m_activeSensor = SensorFactory::Create(currentSensor);
+        currentSensor = SensorType::IMUInternal;
+        s_app.m_activeSensor = SensorFactory::Create(currentSensor);
+        s_app.m_currentSensor = currentSensor;
         auto& sess = s_app.m_session;
         sess.m_uiState = UIState::Settings;
         sess.m_subUiState = subUIState::DetectSensor;
@@ -312,6 +313,7 @@ void renderIfNeeded(AppState& app) {
     }
     sess.m_needsRender = false;
 }
+
 void buttonTask(void* pvParameters) {
     AppState& app = *static_cast<AppState*>(pvParameters);
 
@@ -336,7 +338,7 @@ void setup() {
     xTaskCreate(buttonTask,       // Task function
                 "Button Task",    // Name of the task
                 3096,             // Stack size in words (increased)
-                &s_app,             // Task input parameter
+                &s_app,           // Task input parameter
                 2,                // Priority of the task (lowered)
                 &buttonTaskHandle // Task handle
     );

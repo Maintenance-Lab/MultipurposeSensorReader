@@ -45,4 +45,5 @@ class Sensor {
     // list of sensor to render for toggling readout
     int numberOfSensors = 0;
     sensorConfig sensorList[MAX_NUM_SENSORS] = {{sensingType::noSensor, false}};
+    bool beginCalled = false;
 };

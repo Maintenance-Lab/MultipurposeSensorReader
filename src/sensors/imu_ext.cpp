@@ -11,6 +11,10 @@ void IMUExternalWrapper::gatherAndAccumulate(DataLogger& dataLogger, Measurement
     float gyroX, gyroY, gyroZ;
     float temp;
 
+    if (!beginCalled) {
+        return;
+    }
+
     dataLogger.printf("%u,%llu", data.m_totalSamples, msSinceStart);
     for (int i = 0; i < numberOfSensors; i++) {
         if (sensorList[i].isActive) {

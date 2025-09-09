@@ -18,6 +18,8 @@ class ENV3Wrapper : public Sensor {
         if (!sht3x.begin(&Wire, SHT3X_I2C_ADDR, 32, 33, 400000U)) {
             Serial.println("Couldn't find SHT3X");
         }
+
+        beginCalled = true; // to unsure gatherAndAccumulate does not run before begin is called
     }
     void gatherAndAccumulate(DataLogger& dataLogger, MeasurementData& data, uint64_t msSinceStart) override;
 };

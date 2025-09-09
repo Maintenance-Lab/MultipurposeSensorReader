@@ -14,6 +14,7 @@ class IMUInternalWrapper : public Sensor {
     void begin(MeasurementConfig& config) override {
         Wire1.begin(21, 22);
         m_imu.begin();
+        beginCalled = true; // to unsure gatherAndAccumulate does not run before begin is called
     }
 
     void gatherAndAccumulate(DataLogger& dataLogger, MeasurementData& data, uint64_t msSinceStart) override;

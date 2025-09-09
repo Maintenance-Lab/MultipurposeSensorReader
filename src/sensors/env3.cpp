@@ -8,6 +8,10 @@ ENV3Wrapper::ENV3Wrapper() {
 }
 
 void ENV3Wrapper::gatherAndAccumulate(DataLogger& dataLogger, MeasurementData& data, uint64_t msSinceStart) {
+    if (!beginCalled) {
+        return;
+    }
+
     sht3x.update();
 
     float pressure = 0.0f;
