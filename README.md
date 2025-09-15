@@ -21,5 +21,5 @@ cd MultipurposeSensorReader
 * Connect your M5Stack Core2 via USB.
 * Click the "PlatformIO: Upload" button in the VSCode toolbar or run:
 ```bash
-pio run --target upload
+pio run --target upload -e esp32release
 ```
